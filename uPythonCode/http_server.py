@@ -4,6 +4,8 @@ class HTTPServer:
 
         self.status_led = Pin(2, Pin.OUT)
 
+        self.debug = False
+
         self.wifi_connect()
         self.setup_socket()
 
@@ -81,11 +83,10 @@ class HTTPServer:
         Populate dict with key value pairs in post request body and pass dict
         to virtual method post_handler()
         """
+        import ujson
 
         body = soc.recv(1024).decode()
-        body_dict = {
-            pair[0]: pair[1] for pair in [pair.split("=") for pair in body.split("&")]
-        }
+        body_dict = ujson.loads(body)
 
         self.post_handler(body_dict, soc)
 
@@ -96,3 +97,14 @@ class HTTPServer:
         be closed after transaction is completed.
         """
         pass
+
+    def post_req_debug_out(self, data_dict):
+        """Prints POST request data to the UART terminal if instance variable debug
+        is True.
+        """
+
+        if not self.debug:
+            return
+
+        print(data_dict)
+

@@ -23,6 +23,8 @@ class LEDStripServer(http_server.HTTPServer):
             pwm.freq(1000)
             pwm.duty(0)
 
+        self.debug = True
+
     def post_handler(self, data_dict, soc):
         """Sets the behaviour of the LEDS.
         Looks for a mode then looks for further bits of post data to determine
@@ -42,11 +44,11 @@ class LEDStripServer(http_server.HTTPServer):
                     - blu = int(0, 1023)
         """
         if not "mode" in data_dict:
-            self.bad_request(soc)
+            self.bad_request(soc, data_dict)
             return
 
         if not data_dict["mode"] in ["switch", "analog"]:
-            self.bad_request(soc)
+            self.bad_request(soc, data_dict)
             return
 
         if data_dict["mode"] == "switch":
@@ -56,7 +58,7 @@ class LEDStripServer(http_server.HTTPServer):
                 elif data_dict[led] == "OFF":
                     pwm_obj.duty(0)
                 else:
-                    self.bad_request(soc)
+                    self.bad_request(soc, data_dict)
                     return
 
         if data_dict["mode"] == "analog":
@@ -64,7 +66,7 @@ class LEDStripServer(http_server.HTTPServer):
                 try:
                     pwm_int = int(data_dict[led])
                 except:
-                    self.bad_request(soc)
+                    self.bad_request(soc, data_dict)
                     return
 
                 pwm_obj.duty(pwm_int)
@@ -72,15 +74,19 @@ class LEDStripServer(http_server.HTTPServer):
         soc.send("HTTP/1.0 200 OK\r\n")
         soc.close()
 
-    def bad_request(self, soc):
+    def bad_request(self, soc, data_dict):
+
         soc.send("HTTP/1.0 400 BAD REQUEST\r\n")
         soc.close()
+
+        self.post_req_debug_out(data_dict)
 
 
 def main():
     led_strip_server = LEDStripServer()
 
     led_strip_server.request_loop()
+
 
 if __name__ == "__main__":
     main()
