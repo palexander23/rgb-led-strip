@@ -7,4 +7,3 @@ def test_single_request():
     )
 
     assert res.status_code == 400
-
