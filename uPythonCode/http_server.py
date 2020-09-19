@@ -75,12 +75,20 @@ class HTTPServer:
         import ujson
 
         try:
-            body_bytes = await reader.read(100)
+            body_bytes = await reader.read(512)
         except StopIteration:
             print("Could not retrieve body")
 
         body = body_bytes.decode()
-        body_dict = ujson.loads(body)
+
+        try:
+            body_dict = ujson.loads(body)
+        except Exception as e:
+            await self.bad_request(reader, writer, {})
+            print(e)
+            print(body)
+
+            return
 
         await self.post_handler(body_dict, reader, writer)
 
@@ -101,3 +109,6 @@ class HTTPServer:
             return
 
         print(data_dict)
+
+    async def bad_request(self, reader, writer, data_dict):
+        pass
