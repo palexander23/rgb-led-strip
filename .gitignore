@@ -1,1 +1,5 @@
+# Compiled Python Files
 **/__pycache__/
+
+# Eagle PCB Past Schematic/Board Versions
+**/*.*#*

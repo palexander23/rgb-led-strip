@@ -59,6 +59,27 @@ def test_analog_brightness():
 
     res = requests.post(
         "http://192.168.1.166/",
+        json={"mode": "analog", "blu": "0", "red": "1023", "gre": "0"},
+    )
+    sleep(0.5)
+    check_response(res)
+
+    res = requests.post(
+        "http://192.168.1.166/",
+        json={"mode": "analog", "blu": "0", "red": "0", "gre": "1023"},
+    )
+    sleep(0.5)
+    check_response(res)
+
+    res = requests.post(
+        "http://192.168.1.166/",
+        json={"mode": "analog", "blu": "1023", "red": "0", "gre": "0"},
+    )
+    sleep(0.5)
+    check_response(res)
+
+    res = requests.post(
+        "http://192.168.1.166/",
         json={"mode": "switch", "blu": "OFF", "red": "OFF", "gre": "OFF"},
     )
     sleep(0.5)
