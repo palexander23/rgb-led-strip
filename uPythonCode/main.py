@@ -1,4 +1,4 @@
-import socket, machine
+import socket, machine, uasyncio
 
 import http_server
 
@@ -14,18 +14,22 @@ class LEDStripServer(http_server.HTTPServer):
         self.blu_pin = machine.Pin(17)
 
         self.red_pwm = machine.PWM(self.red_pin)
+        self.red_pwm.duty(0)
+
         self.gre_pwm = machine.PWM(self.gre_pin)
+        self.gre_pwm.duty(0)
+
         self.blu_pwm = machine.PWM(self.blu_pin)
+        self.blu_pwm.duty(0)
 
         self.pwm_objects = [self.red_pwm, self.blu_pwm, self.gre_pwm]
 
         for pwm in self.pwm_objects:
             pwm.freq(1000)
-            pwm.duty(0)
 
         self.debug = True
 
-    def post_handler(self, data_dict, soc):
+    async def post_handler(self, data_dict, reader, writer):
         """Sets the behaviour of the LEDS.
         Looks for a mode then looks for further bits of post data to determine
         LED State.
@@ -44,11 +48,11 @@ class LEDStripServer(http_server.HTTPServer):
                     - blu = int(0, 1023)
         """
         if not "mode" in data_dict:
-            self.bad_request(soc, data_dict)
+            await self.bad_request(reader, writer, data_dict)
             return
 
         if not data_dict["mode"] in ["switch", "analog"]:
-            self.bad_request(soc, data_dict)
+            await self.bad_request(reader, writer, data_dict)
             return
 
         if data_dict["mode"] == "switch":
@@ -58,7 +62,7 @@ class LEDStripServer(http_server.HTTPServer):
                 elif data_dict[led] == "OFF":
                     pwm_obj.duty(0)
                 else:
-                    self.bad_request(soc, data_dict)
+                    await self.bad_request(reader, writer, data_dict)
                     return
 
         if data_dict["mode"] == "analog":
@@ -66,26 +70,59 @@ class LEDStripServer(http_server.HTTPServer):
                 try:
                     pwm_int = int(data_dict[led])
                 except:
-                    self.bad_request(soc, data_dict)
+                    await self.bad_request(reader, writer, data_dict)
                     return
 
                 pwm_obj.duty(pwm_int)
 
-        soc.send("HTTP/1.0 200 OK\r\n")
-        soc.close()
+        await writer.awrite("HTTP/1.0 200 OK\r\n")
 
-    def bad_request(self, soc, data_dict):
+        await reader.aclose()
+        await writer.aclose()
 
-        soc.send("HTTP/1.0 400 BAD REQUEST\r\n")
-        soc.close()
+    async def bad_request(self, reader, writer, data_dict):
 
-        self.post_req_debug_out(data_dict)
+        await writer.awrite("HTTP/1.0 400 BAD REQUEST\r\n")
+
+        await reader.aclose()
+        await writer.aclose()
+
+        await self.post_req_debug_out(data_dict)
+
+
+async def heartbeat():
+    """Flash the onboard LED in a heartbeat to show the event loop is running"""
+
+    from machine import Pin
+
+    status_led = Pin(2, Pin.OUT)
+
+    status_led.on()
+    await uasyncio.sleep(0.1)
+    status_led.off()
+    await uasyncio.sleep(0.1)
+
+    status_led.on()
+    await uasyncio.sleep(0.1)
+    status_led.off()
+    await uasyncio.sleep(0.1)
+
+    while True:
+        status_led.on()
+        await uasyncio.sleep(0.5)
+        status_led.off()
+        await uasyncio.sleep(0.5)
 
 
 def main():
     led_strip_server = LEDStripServer()
 
-    led_strip_server.request_loop()
+    # Set up event loop
+    loop = uasyncio.get_event_loop()
+
+    loop.create_task(led_strip_server.start_server())
+    loop.create_task(heartbeat())
+    loop.run_forever()
 
 
 if __name__ == "__main__":

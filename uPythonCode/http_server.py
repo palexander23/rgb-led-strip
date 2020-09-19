@@ -1,13 +1,12 @@
+import uasyncio
+
+
 class HTTPServer:
     def __init__(self):
-        from machine import Pin
-
-        self.status_led = Pin(2, Pin.OUT)
 
         self.debug = False
 
         self.wifi_connect()
-        self.setup_socket()
 
     def wifi_connect(self):
         """Establish WIFI connection with details stored in separate file"""
@@ -26,43 +25,33 @@ class HTTPServer:
             while not self.wlan.isconnected():
                 pass
 
-    def setup_socket(self):
-        import socket
+    async def start_server(self):
+        server = await uasyncio.start_server(self.handle_request, "0.0.0.0", 80)
+        await server.serve_forever()
 
-        addr = socket.getaddrinfo("0.0.0.0", 80)[0][-1]
+    async def handle_request(self, reader, writer):
 
-        self.soc = socket.socket()
-        self.soc.bind(addr)
-        self.soc.listen(1)
+        head = b""
+        r = b""
 
-    def request_loop(self):
-        while True:
-            cl, addr = self.soc.accept()
-            self.status_led.on()
+        while r != b"\r\n":
+            r = await reader.readline()
+            head += r
 
-            head = b""
-            r = b""
+        head = head.decode()
 
-            while r != b"\r\n":
-                r = cl.readline()
-                head += r
+        req_type = head[0:4]
 
-            head = head.decode()
+        if req_type == "POST":
+            await self.process_post(reader, writer, head)
 
-            req_type = head[0:4]
+        if req_type == "GET ":
+            self.process_get(reader, writer, head)
 
-            self.status_led.off()
+        if req_type == "PUT ":
+            self.process_put(reader, writer, head)
 
-            if req_type == "POST":
-                self.process_post(cl, head)
-
-            if req_type == "GET ":
-                self.process_get(cl, head)
-
-            if req_type == "PUT ":
-                self.process_put(cl, head)
-
-    def process_get(self, soc, head):
+    async def process_get(self, reader, writer, head):
         """###STUB###
         Begin the processing of a get request.
         """
@@ -70,7 +59,7 @@ class HTTPServer:
         soc.send("HTTP/1.0 200 OK\r\n")
         soc.close()
 
-    def process_put(self, soc, head):
+    async def process_put(self, reader, writer, head):
         """###STUB###
         Begin the processing of a put request.
         """
@@ -78,19 +67,24 @@ class HTTPServer:
         soc.send("HTTP/1.0 200 OK\r\n")
         soc.close()
 
-    def process_post(self, soc, head):
+    async def process_post(self, reader, writer, head):
         """Begin processing of put request.
         Populate dict with key value pairs in post request body and pass dict
         to virtual method post_handler()
         """
         import ujson
 
-        body = soc.recv(1024).decode()
+        try:
+            body_bytes = await reader.read(100)
+        except StopIteration:
+            print("Could not retrieve body")
+
+        body = body_bytes.decode()
         body_dict = ujson.loads(body)
 
-        self.post_handler(body_dict, soc)
+        await self.post_handler(body_dict, reader, writer)
 
-    def post_handler(self, data_dict, soc):
+    async def post_handler(self, data_dict, reader, writer):
         """Stub for overriding by subclassing HTTPServer.
         For code used to handle post requests. 
         Socket passed as soc should have a HTTP response sent and should
@@ -98,7 +92,7 @@ class HTTPServer:
         """
         pass
 
-    def post_req_debug_out(self, data_dict):
+    async def post_req_debug_out(self, data_dict):
         """Prints POST request data to the UART terminal if instance variable debug
         is True.
         """
