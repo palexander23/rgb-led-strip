@@ -59,7 +59,7 @@ class LEDStripServer(http_server.HTTPServer):
             await self.bad_request(reader, writer, data_dict)
             return
 
-        if not data_dict["mode"] in ["switch", "analog", "flash"]:
+        if not data_dict["mode"] in ["switch", "analog", "flash", "fade"]:
             await self.bad_request(reader, writer, data_dict)
             return
 
@@ -99,6 +99,23 @@ class LEDStripServer(http_server.HTTPServer):
                 self.flash_task(colour_list, on_time_list, reader, writer, data_dict)
             )
 
+        if data_dict["mode"] == "fade":
+            colour_list = data_dict["colour_list"]
+            on_time_list = data_dict["on_time_list"]
+            fade_time_list = data_dict["fade_time_list"]
+
+            if (
+                not len(colour_list) == len(on_time_list) == len(fade_time_list)
+                or len(colour_list) < 2
+            ):
+                self.bad_request(reader, writer, data_dict)
+
+            self.active_task = loop.create_task(
+                self.fade_task(
+                    colour_list, on_time_list, fade_time_list, reader, writer, data_dict
+                )
+            )
+
         await writer.awrite("HTTP/1.0 200 OK\r\n")
 
         await reader.aclose()
@@ -124,6 +141,83 @@ class LEDStripServer(http_server.HTTPServer):
                         pwm_obj.duty(mapped_val)
 
                     await uasyncio.sleep(float(time))
+
+        except uasyncio.CancelledError:
+            raise
+
+    async def fade_task(
+        self, colour_list, on_time_list, fade_time_list, reader, writer, data_dict
+    ):
+        try:
+            while True:
+                for idx, (curr_col, on_time, fade_time) in enumerate(
+                    zip(colour_list, on_time_list, fade_time_list)
+                ):
+
+                    # Get index of next colour
+                    next_idx = idx + 1
+                    if next_idx > len(colour_list) - 1:
+                        next_idx = 0
+
+                    # Set LED vals for on time
+                    curr_rgb_vals = await self.decode_hex_colour(curr_col)
+
+                    if curr_rgb_vals == []:
+                        await self.bad_request(reader, writer, data_dict)
+                        return
+
+                    mapped_curr_vals = []
+
+                    for curr_val in curr_rgb_vals:
+                        mapped_curr_val = await self.map(curr_val, 0, 255, 0, 1023)
+                        mapped_curr_vals.append(mapped_curr_val)
+
+                    for mapped_curr_val, pwm_obj in zip(
+                        mapped_curr_vals, self.pwm_objects
+                    ):
+                        pwm_obj.duty(mapped_curr_val)
+
+                    await uasyncio.sleep(float(on_time))
+
+                    # Set up the fade
+
+                    # Get number of 60th of a second second increments that occur
+                    # during the fade operation
+                    fade_refresh_rate = 60
+
+                    num_incr = round(float(fade_time) * fade_refresh_rate)
+
+                    next_col = colour_list[next_idx]
+                    next_rgb_vals = await self.decode_hex_colour(next_col)
+
+                    rgb_diffs = [
+                        next_val - curr_val
+                        for next_val, curr_val in zip(next_rgb_vals, curr_rgb_vals)
+                    ]
+
+                    # Run the fade
+                    for count in range(num_incr):
+
+                        # Calculate this count's LED values
+                        fade_vals = [
+                            curr_rgb_val + (rgb_diff * count / num_incr)
+                            for rgb_diff, curr_rgb_val in zip(rgb_diffs, curr_rgb_vals)
+                        ]
+
+                        # Apply these LED values to the strip
+                        mapped_fade_vals = []
+
+                        for fade_val in fade_vals:
+                            mapped_val = round(
+                                await self.map(fade_val, 0, 255, 0, 1023)
+                            )
+                            mapped_fade_vals.append(mapped_val)
+
+                        for val, pwm_obj in zip(mapped_fade_vals, self.pwm_objects):
+                            pwm_obj.duty(val)
+
+                        # Wait for the next increment
+                        await uasyncio.sleep(1 / fade_refresh_rate)
 
         except uasyncio.CancelledError:
             raise
