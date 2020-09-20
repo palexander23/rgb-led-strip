@@ -1,10 +1,13 @@
-import uasyncio
+import uasyncio, ure
 
 
 class HTTPServer:
     def __init__(self):
 
         self.debug = False
+
+        # Group three of the match will give the number without the white space
+        self.content_length_regex = ure.compile("(.+)(\s)([0-9]+)")
 
         self.wifi_connect()
 
@@ -42,16 +45,30 @@ class HTTPServer:
 
         req_type = head[0:4]
 
+        # Define a default body length if it cannot be decoded from the req head
+        body_len = 1024
+
+        try:
+            # Look for the content length number in the request head
+            match = self.content_length_regex.match(head)
+
+            # Extract that value without the whitespace
+            body_len_str = match.group(3)
+            body_len = int(body_len_str)
+
+        except Exception as e:
+            print("Could not decode the content length: {}".format(e))
+
         if req_type == "POST":
-            await self.process_post(reader, writer, head)
+            await self.process_post(reader, writer, head, body_len)
 
         if req_type == "GET ":
-            self.process_get(reader, writer, head)
+            self.process_get(reader, writer, head, body_len)
 
         if req_type == "PUT ":
-            self.process_put(reader, writer, head)
+            self.process_put(reader, writer, head, body_len)
 
-    async def process_get(self, reader, writer, head):
+    async def process_get(self, reader, writer, head, body_len):
         """###STUB###
         Begin the processing of a get request.
         """
@@ -59,7 +76,7 @@ class HTTPServer:
         soc.send("HTTP/1.0 200 OK\r\n")
         soc.close()
 
-    async def process_put(self, reader, writer, head):
+    async def process_put(self, reader, writer, head, body_len):
         """###STUB###
         Begin the processing of a put request.
         """
@@ -67,7 +84,7 @@ class HTTPServer:
         soc.send("HTTP/1.0 200 OK\r\n")
         soc.close()
 
-    async def process_post(self, reader, writer, head):
+    async def process_post(self, reader, writer, head, body_len):
         """Begin processing of put request.
         Populate dict with key value pairs in post request body and pass dict
         to virtual method post_handler()
@@ -75,7 +92,8 @@ class HTTPServer:
         import ujson
 
         try:
-            body_bytes = await reader.read(512)
+            body_bytes = await reader.read(body_len)
+
         except StopIteration:
             print("Could not retrieve body")
 
@@ -83,9 +101,11 @@ class HTTPServer:
 
         try:
             body_dict = ujson.loads(body)
+
         except Exception as e:
             await self.bad_request(reader, writer, {})
-            print(e)
+            print("Body Javascript Decode Error: {}".format(e))
+            print("Body Received:")
             print(body)
 
             return
