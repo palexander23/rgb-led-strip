@@ -10,7 +10,7 @@ def check_response(res):
 def test_flash():
     print("Sending..")
     res = requests.post(
-        "http://192.168.1.166/",
+        "http://192.168.0.107/",
         json={
             "mode": "fade",
             "colour_list": ["#ff0000", "#00ff00", "#0000ff"],
@@ -24,7 +24,7 @@ def test_flash():
 
     print("Sending..")
     res = requests.post(
-        "http://192.168.1.166/",
+        "http://192.168.0.107/",
         json={
             "mode": "fade",
             "colour_list": ["#ff0000", "#110000"],
@@ -38,7 +38,7 @@ def test_flash():
 
     print("Sending..")
     res = requests.post(
-        "http://192.168.1.166/",
+        "http://192.168.0.107/",
         json={
             "mode": "fade",
             "colour_list": [
