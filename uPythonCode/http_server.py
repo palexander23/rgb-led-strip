@@ -28,6 +28,10 @@ class HTTPServer:
             while not self.wlan.isconnected():
                 pass
 
+        # Get and print IP Address
+        self.ip_address = self.wlan.ifconfig()[0]
+        print("IP Address: {}".format(self.ip_address))
+
     async def start_server(self):
         server = await uasyncio.start_server(self.handle_request, "0.0.0.0", 80)
         await server.serve_forever()
