@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script src="LEDStrip.js"></script>
+    <script>
+        var strip = new LEDStrip("http://192.168.0.107");
+
+
+    </script>
+</head>
+
+<body>
+    <h1>Test Buttons</h1>
+    <div>
+        <h2>Switch Test</h2>
+        <button onclick="strip.switch(1, 0, 0)">Red On</button>
+        <button onclick="strip.switch(0, 1, 0)">Green On</button>
+        <button onclick="strip.switch(0, 0, 1)">Blue On</button>
+        <button onclick="strip.switch(1, 1, 1)">All On</button>
+    </div>
+    <div>
+        <h2>Analog Test</h2>
+        <button onclick="strip.analog(0, 500, 500)">Turquoise</button>
+        <button onclick="strip.analog(500, 500, 500)">Faded White</button>
+    </div>
+    <div>
+        <h2>Flash Test</h2>
+        <button onclick='strip.flash(["#ff0000", "#00ff00", "#0000ff"], [0.5, 0.5, 0.5])'>RGB Flash</button>
+    </div>
+    <div>
+        <h2>Fade Test</h2>
+        <button onclick='strip.fade(["#ff0000", "#00ff00", "#0000ff"], ["0", "0", "0"], ["0.5", "0.5", "0.5"])'>
+            Gamer Mode
+        </button>
+        <button onclick='strip.fade(["#0000ff", "#000000"], [1, 0], [1, 1])'>
+            Sci-fi Blue
+        </button>
+    </div>
+    <br>
+    <button onclick="strip.switch(0, 0, 0)">Reset LEDs</button>
+</body>
+
+</html>
