@@ -1,7 +1,7 @@
 class LEDStrip {
 
-    constructor(ip) {
-        this.ip = ip
+    constructor(ip = "192.168.0.107") {
+        this.addr = "http://" + ip
         this.xhttp = new XMLHttpRequest();
     }
 
@@ -38,8 +38,8 @@ class LEDStrip {
         this.post_req(body_str)
     }
 
-    analog(red, gre, blu) {
-        var body_obj = { mode: "analog", red: String(red), gre: String(gre), blu: String(blu) }
+    analog(colour) {
+        var body_obj = { mode: "analog", colour: colour }
         var body_str = JSON.stringify(body_obj)
 
         this.post_req(body_str)
@@ -60,7 +60,7 @@ class LEDStrip {
     }
 
     post_req(body_str) {
-        this.xhttp.open("POST", this.ip, true)
+        this.xhttp.open("POST", this.addr, true)
         this.xhttp.send(body_str)
         console.log("Request completed")
     }

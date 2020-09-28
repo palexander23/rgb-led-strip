@@ -37,6 +37,22 @@ class LEDStripServer(http_server.HTTPServer):
 
         self.active_task = None
 
+    async def output_hex_colour(self, colour, reader, writer, data_dict):
+        rgb_vals = await self.decode_hex_colour(colour)
+
+        if rgb_vals == []:
+            await self.bad_request(reader, writer, data_dict)
+            return
+
+        mapped_vals = []
+
+        for val in rgb_vals:
+            mapped_val = await self.map(val, 0, 255, 0, 1023)
+            mapped_vals.append(mapped_val)
+
+        for mapped_val, pwm_obj in zip(mapped_vals, self.pwm_objects):
+            pwm_obj.duty(mapped_val)
+
     async def post_handler(self, data_dict, reader, writer):
         """Sets the behaviour of the LEDS.
         Looks for a mode then looks for further bits of post data to determine
@@ -78,14 +94,10 @@ class LEDStripServer(http_server.HTTPServer):
                     return
 
         if data_dict["mode"] == "analog":
-            for led, pwm_obj in zip(["red", "gre", "blu"], self.pwm_objects):
-                try:
-                    pwm_int = int(data_dict[led])
-                except:
-                    await self.bad_request(reader, writer, data_dict)
-                    return
+            if not data_dict["colour"]:
+                self.bad_request(reader, writer, data_dict)
 
-                pwm_obj.duty(pwm_int)
+            await self.output_hex_colour(data_dict["colour"], reader, writer, data_dict)
 
         if data_dict["mode"] == "flash":
             colour_list = data_dict["colour_list"]
@@ -125,20 +137,7 @@ class LEDStripServer(http_server.HTTPServer):
         try:
             while True:
                 for colour, time in zip(colours_list, on_times_list):
-                    rgb_vals = await self.decode_hex_colour(colour)
-
-                    if rgb_vals == []:
-                        await self.bad_request(reader, writer, data_dict)
-                        return
-
-                    mapped_vals = []
-
-                    for val in rgb_vals:
-                        mapped_val = await self.map(val, 0, 255, 0, 1023)
-                        mapped_vals.append(mapped_val)
-
-                    for mapped_val, pwm_obj in zip(mapped_vals, self.pwm_objects):
-                        pwm_obj.duty(mapped_val)
+                    await self.output_hex_colour(colour, reader, writer, data_dict)
 
                     await uasyncio.sleep(float(time))
 
@@ -160,26 +159,13 @@ class LEDStripServer(http_server.HTTPServer):
                         next_idx = 0
 
                     # Set LED vals for on time
-                    curr_rgb_vals = await self.decode_hex_colour(curr_col)
-
-                    if curr_rgb_vals == []:
-                        await self.bad_request(reader, writer, data_dict)
-                        return
-
-                    mapped_curr_vals = []
-
-                    for curr_val in curr_rgb_vals:
-                        mapped_curr_val = await self.map(curr_val, 0, 255, 0, 1023)
-                        mapped_curr_vals.append(mapped_curr_val)
-
-                    for mapped_curr_val, pwm_obj in zip(
-                        mapped_curr_vals, self.pwm_objects
-                    ):
-                        pwm_obj.duty(mapped_curr_val)
+                    await self.output_hex_colour(curr_col, reader, writer, data_dict)
 
                     await uasyncio.sleep(float(on_time))
 
                     # Set up the fade
+                    # Get the current colour
+                    curr_rgb_vals = await self.decode_hex_colour(curr_col)
 
                     # Get number of 60th of a second second increments that occur
                     # during the fade operation

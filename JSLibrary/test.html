@@ -4,7 +4,7 @@
 <head>
     <script src="LEDStrip.js"></script>
     <script>
-        var strip = new LEDStrip("http://192.168.0.107");
+        var strip = new LEDStrip("192.168.0.107");
 
 
     </script>
@@ -21,8 +21,8 @@
     </div>
     <div>
         <h2>Analog Test</h2>
-        <button onclick="strip.analog(0, 500, 500)">Turquoise</button>
-        <button onclick="strip.analog(500, 500, 500)">Faded White</button>
+        <button onclick='strip.analog("#005555")'>Turquoise</button>
+        <button onclick='strip.analog("#555555")'>Faded White</button>
     </div>
     <div>
         <h2>Flash Test</h2>
@@ -30,7 +30,8 @@
     </div>
     <div>
         <h2>Fade Test</h2>
-        <button onclick='strip.fade(["#ff0000", "#00ff00", "#0000ff"], ["0", "0", "0"], ["0.5", "0.5", "0.5"])'>
+        <button
+            onclick='strip.fade(["#ff0000", "#00ff00", "#0000ff", "#00ff00"], ["0", "0", "0", "0"], ["0.5", "0.5", "0.5", "0.5"])'>
             Gamer Mode
         </button>
         <button onclick='strip.fade(["#0000ff", "#000000"], [1, 0], [1, 1])'>
